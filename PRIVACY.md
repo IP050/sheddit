@@ -31,7 +31,7 @@ One object, in `chrome.storage.sync`, holding your display preferences:
 | --- | --- |
 | `theme` | which of the five colour themes you picked |
 | `listing`, `comments`, `chrome`, `profiles` | which kinds of page Sheddit should re-render |
-| `compactRows`, `showThumbnails`, `showNsfwThumbnails`, `autoPaginate` | layout and paging toggles |
+| `compactRows`, `showThumbnails`, `showNsfwThumbnails`, `autoPaginate`, `shortScores` | layout, paging and score-format toggles |
 | `inlineVideo`, `inlineImages` | whether video and pictures render inside the layout |
 | `account` | whether the vote arrows, reply box and account corner work when you are already signed in |
 | `redirectOldReddit` | whether an `old.reddit.com` link is sent to the same page on `www.reddit.com` |

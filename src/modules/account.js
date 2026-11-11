@@ -52,7 +52,7 @@
 globalThis.SHD = globalThis.SHD || {};
 
 SHD.account = (() => {
-  const { h, score, plural } = SHD.dom;
+  const { h, score, shortScore, shorten, plural } = SHD.dom;
   const C = SHD.C;
 
   /* Mutable for the suite, like comments.timings — nothing in the extension writes it.
@@ -257,8 +257,49 @@ SHD.account = (() => {
     const node = scoreNode(col, kind);
     if (node && m.score != null && !m.scoreHidden) {
       const n = m.score + (state - initial);
-      node.textContent = kind === 'post' ? score(n) : plural(n, 'point');
+      /* A post's score answers to the shortening setting exactly as dom.score() draws
+         it, so a click cannot paint a different notation from the one the row was
+         rendered in. A comment's 'N points' does not: the setting is about the midcol,
+         and "13.5K points" is not a sentence old reddit ever printed. */
+      node.textContent = kind !== 'post' ? plural(n, 'point')
+        : shorten() ? shortScore(n) : score(n);
+      /* The hover text was built for the DELIVERED number at render time. Repainting the
+         visible figure without it would leave 13.4K on the row and 13495 in the tooltip -
+         two numbers for one score, and the stale one is the one a reader opens the
+         tooltip for. Only the exact-figure half moves; the upvote ratio is Reddit's
+         delivery about the post and does not change because a button was clicked. */
+      if (kind === 'post' && (node.title || isShortened(n))) {
+        node.title = scoreTitle(n, ratioOf(node.title));
+        if (!node.title) node.removeAttribute('title');
+      }
     }
+  }
+
+  /** Whether THIS score is being printed short right now, and so whether the exact figure
+      has to be kept reachable. Same rule dom.shortScore() applies, asked as a question. */
+  function isShortened(n) {
+    return n != null && shorten() && Math.abs(n) >= C.SCORE_FORMAT.threshold;
+  }
+
+  /**
+   * The midcol score's hover text, and the ONE place that shape is built - render and
+   * repaint both call it, so the two can never disagree about what the tooltip says.
+   *
+   * Reddit's upvote ratio when the delivery carried one (old reddit's own tooltip idea),
+   * plus the exact score ONLY when the visible figure has been shortened. A row printed
+   * whole needs no second copy of its own number.
+   */
+  function scoreTitle(n, ratio) {
+    return [
+      ratio != null ? `${Math.round(ratio * 100)}% upvoted` : null,
+      isShortened(n) ? `${n} points` : null
+    ].filter(Boolean).join(' \u00b7 ') || null;
+  }
+
+  /** The ratio back out of a tooltip scoreTitle() built, for a repaint. */
+  function ratioOf(title) {
+    const m = /^(\d+)% upvoted/.exec(title || '');
+    return m ? Number(m[1]) / 100 : null;
   }
 
   /** Record the first native state seen as the one the delivered score already counts. */
@@ -379,7 +420,11 @@ SHD.account = (() => {
       kind === 'post'
         ? h('div.score.unvoted', {
             text: score(m.score),
-            title: m.upvoteRatio != null ? `${Math.round(m.upvoteRatio * 100)}% upvoted` : null
+            /* The ratio was already here; the exact figure joins it only when the
+               display has shortened the visible one, so a reader who opted into 13.4K
+               can still get 13495 by hovering, and one who did not sees exactly the
+               tooltip old reddit's rows have always had. See scoreTitle(). */
+            title: scoreTitle(m.score, m.upvoteRatio)
           })
         : null,
       arrow(-1, 'downvote')

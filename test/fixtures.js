@@ -33,7 +33,9 @@ const POSTS = [
     id: 't3_gallery1', type: 'gallery', title: 'Bubble Boy lived in a sterile environment',
     permalink: '/r/interesting/comments/gallery1/bubble_boy/',
     contentHref: 'https://www.reddit.com/gallery/gallery1',
-    score: '12247', comments: '1270', domain: 'reddit.com',
+    /* The owner's own example: 13,495 upvotes. Truncated to 13.4K, not rounded to 13.5K —
+       test/run.js asserts exactly that pair, so changing this score changes the assertion. */
+    score: '13495', comments: '1270', domain: 'reddit.com',
     author: 'Wonderfulhumanss', sub: 'interesting',
     /* Gallery frames beside the community-icon and flair decoys bug 1 is about. Frame 1
        lists its LARGEST midway (640/1280/960) so a first-or-last resolver picks visibly
@@ -94,7 +96,9 @@ const POSTS = [
     id: 't3_image1', type: 'image', title: 'A very good dog',
     permalink: '/r/aww/comments/image1/a_very_good_dog/',
     contentHref: 'https://i.redd.it/gooddog.jpg',
-    score: '43110', comments: '902', domain: 'i.redd.it',
+    /* Six figures: the other side of the 100,000 boundary (see C.SCORE_FORMAT). 123,456
+       prints 123K with the setting on - whole thousands, no tenth. */
+    score: '123456', comments: '902', domain: 'i.redd.it',
     author: 'dogperson', sub: 'aww',
     imgs: [{
       src: 'i.redd.it/gooddog.jpg',

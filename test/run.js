@@ -8428,6 +8428,97 @@ async function boot(html, url, setup) {
     window.SHD.dom.passthroughClear();
   }
 
+
+  /* ================================================================================== *
+   * SHORT SCORES (opt-in) - 13495 -> "13.5K", from ten thousand up
+   * ==================================================================================
+   *
+   * Off by default: old reddit printed the whole number, so the faithful rendering is the
+   * one a reader gets without asking. Every assertion below is about the OPT-IN being
+   * honest rather than about the format being pretty - a truncated 13.4K must never be
+   * shown as 13.5K, and the row a click repaints must not disagree with the row the
+   * setting drew.
+   */
+  console.log('\n\x1b[1mSHORT SCORES\x1b[0m');
+  {
+    const withShort = (extra = {}) => loggedInSettings({ shortScores: true, ...extra });
+    const { doc, window } = await boot(listingPage({ loggedIn: true }), 'https://www.reddit.com/',
+      withShort({ account: true }));
+    fastAccount(window);
+    const scoreOf = (id) => voteCol(doc, id)?.querySelector('.score');
+    check('setup: the opted-in listing renders', !!scoreOf('t3_gallery1'),
+      doc.querySelector('#shd-error')?.textContent?.slice(0, 200));
+    check('a five-figure score prints as 13.4K - truncated, not rounded up',
+      scoreOf('t3_gallery1').textContent === '13.4K', scoreOf('t3_gallery1').textContent);
+    check('...and a six-figure score is whole thousands: 123456 -> 123K',
+      scoreOf('t3_image1').textContent === '123K', scoreOf('t3_image1').textContent);
+    check('four figures stay whole: the threshold is the ten-thousands',
+      scoreOf('t3_link1').textContent === '1867', scoreOf('t3_link1').textContent);
+    // The exact figure has to stay reachable, or the setting would be hiding a number.
+    // The ratio tooltip is old reddit's and stays; the exact figure joins it, so nothing
+    // the row already said is replaced by it.
+    check('the shortened score keeps the exact figure on hover',
+      /^95% upvoted \u00b7 13495 points$/.test(scoreOf('t3_gallery1').getAttribute('title')),
+      scoreOf('t3_gallery1').getAttribute('title'));
+    check('...and a whole score gains no figure it was not already showing',
+      !/points/.test(scoreOf('t3_link1').getAttribute('title') || ''),
+      scoreOf('t3_link1').getAttribute('title'));
+
+    // --- the click path, which formats the number again rather than reusing the row's text
+    const gallery = installNativeAccount(window, doc, doc.querySelector('shreddit-post[id="t3_gallery1"]'),
+      { noState: true });
+    const gcol = voteCol(doc, 't3_gallery1');
+    click(window, gcol.querySelector('.arrow.up'));
+    check('a vote on a shortened score repaints it in the same notation',
+      gallery.clicks.up === 1 &&
+      await waitFor(() => gcol.classList.contains('likes') &&
+        gcol.querySelector('.score').textContent === '13.4K', { timeout: 1000 }),
+      gcol.querySelector('.score').textContent);
+    /* The tooltip follows the vote: repainting the figure without it would leave the row
+       showing 13.4K while hover offered the number it showed before the click. */
+    check('...and the tooltip follows the number it now shows',
+      /\u00b7 13496 points$/.test(gcol.querySelector('.score').getAttribute('title') || ''),
+      gcol.querySelector('.score').getAttribute('title'));
+    const link = installNativeAccount(window, doc, doc.querySelector('shreddit-post[id="t3_link1"]'));
+    const lcol = voteCol(doc, 't3_link1');
+    click(window, lcol.querySelector('.arrow.up'));
+    check('a whole score stays whole through a click, with the setting on',
+      link.clicks.up === 1 &&
+      await waitFor(() => lcol.classList.contains('likes') &&
+        lcol.querySelector('.score').textContent === '1868', { timeout: 1000 }),
+      lcol.querySelector('.score').textContent);
+
+    // --- a comment's score is a sentence, and a sentence is not shortened
+    const page = commentsPage({ loggedIn: true }).replace('thingid="t1_c1"', 'thingid="t1_c1" score-hidden=""');
+    const { doc: cdoc, window: cwin } = await boot(page, COMMENTS_URL, withShort({ account: true }));
+    fastAccount(cwin);
+    const c0 = installNativeAccount(cwin, cdoc, cdoc.querySelector('shreddit-comment[thingid="t1_c0"]'));
+    const tagScore = (id) => cdoc.querySelector(`#shd-root .thing[data-fullname="${id}"] > .entry > .tagline > .score`);
+    const ccol = voteCol(cdoc, 't1_c0');
+    click(cwin, ccol.querySelector('.arrow.up'));
+    check('a comment score is still "N points", never "13.5K points"',
+      c0.clicks.up === 1 && await waitFor(() => ccol.classList.contains('likes') &&
+        tagScore('t1_c0').textContent === '101 points', { timeout: 1000 }),
+      tagScore('t1_c0').textContent);
+  }
+  {
+    // The default, and the one the reader who never opens options gets: old reddit's figure.
+    const { doc, window } = await boot(listingPage(), 'https://www.reddit.com/');
+    check('with the setting off, scores are the whole number old reddit printed',
+      doc.querySelector('#shd-root .thing[data-fullname="t3_gallery1"] .score')?.textContent === '13495',
+      doc.querySelector('#shd-root .thing[data-fullname="t3_gallery1"] .score')?.textContent);
+    check('...and nothing is shortened anywhere in the page',
+      ![...doc.querySelectorAll('#shd-root .score')].some(s => /K$/.test(s.textContent)));
+    /* The whole ladder, at both boundaries and past each of them. The 100,000 boundary
+       is the one the owner specified by hand: ten-thousands truncate to a tenth, from a
+       hundred thousand it is whole thousands. 999,999 is the case that says the
+       no-decimal rule is also what keeps a score from rounding into 1000K. */
+    const ladder = [9999, 10000, 13495, 99999, 100000, 101000, 123456, 999999,
+                    1000000, 1234567, -13495];
+    const got = ladder.map(n => window.SHD.dom.shortScore(n)).join(' ');
+    check('the rule: truncating tenths, then whole thousands from 100k, then M',
+      got === '9999 10.0K 13.4K 99.9K 100K 101K 123K 999K 1.0M 1.2M -13.4K', got);
+  }
   console.log('\n\x1b[1mVOTING ON A LOGGED-IN SESSION\x1b[0m');
   {
     const { doc, window, logs } = await boot(listingPage({ loggedIn: true }), 'https://www.reddit.com/r/programming/', noAuto);
@@ -8460,9 +8551,9 @@ async function boot(html, url, setup) {
     const gcol = voteCol(doc, 't3_gallery1');
     click(window, gcol.querySelector('.arrow.up'));
     check('with no native state the arrow still forwards and lights on its own toggle',
-      gallery.clicks.up === 1 && await settled('t3_gallery1', 'likes') && gcol.querySelector('.score').textContent === '12248');
+      gallery.clicks.up === 1 && await settled('t3_gallery1', 'likes') && gcol.querySelector('.score').textContent === '13496');
     click(window, gcol.querySelector('.arrow.up'));
-    check('...and toggles back', await settled('t3_gallery1', 'unvoted') && gcol.querySelector('.score').textContent === '12247');
+    check('...and toggles back', await settled('t3_gallery1', 'unvoted') && gcol.querySelector('.score').textContent === '13495');
 
     // --- a post the reader had ALREADY upvoted: the delivered score includes that vote ---
     const image = installNativeAccount(window, doc, doc.querySelector('shreddit-post[id="t3_image1"]'), { initial: 1 });
@@ -8471,10 +8562,10 @@ async function boot(html, url, setup) {
       await waitFor(() => icol.classList.contains('likes'), { timeout: 3000 }) &&
       icol.querySelector('.arrow.up').classList.contains('upmod'));
     check('...and the score is left as delivered, because it already counts that vote',
-      icol.querySelector('.score').textContent === '43110', icol.querySelector('.score').textContent);
+      icol.querySelector('.score').textContent === '123456', icol.querySelector('.score').textContent);
     click(window, icol.querySelector('.arrow.up'));
     check('un-voting a standing vote takes one off the delivered score',
-      image.clicks.up === 1 && await settled('t3_image1', 'unvoted') && icol.querySelector('.score').textContent === '43109',
+      image.clicks.up === 1 && await settled('t3_image1', 'unvoted') && icol.querySelector('.score').textContent === '123455',
       icol.querySelector('.score').textContent);
 
     // --- a vote Reddit REFUSES (the button never lights): ours goes dark again ---

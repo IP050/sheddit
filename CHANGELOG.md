@@ -20,6 +20,38 @@ marked **never worked**, because "fixed" would imply it once did.
 
 ---
 
+## 0.65.0
+
+### Added — an option to print big scores short: 13.4K, not 13495
+
+The options page has a new **Short scores** checkbox, off by default. With it on, a post's
+score from 10,000 up prints as `13.4K` in the vote column, from 100,000 up as `123K`, and
+from a million as `1.2M`, with the exact figure still on hover. Below ten thousand nothing
+changes, so four-digit scores stay whole — the threshold is the ten-thousands.
+
+**The decimal is truncated, never rounded.** 13,495 upvotes print as `13.4K`: the post does
+not have 13.5 thousand, and rounding would also invent a figure at the top of a unit
+(`999,999` would read `1000.0K`). Truncating cannot do either.
+
+**Hundreds of thousands carry no decimal at all** — `123K`, not `123.4K`. At that size the
+third significant figure is the one worth printing, a decimal there often repeats digits the
+score does not have (a trending post is frequently exactly 100k), and it would widen the
+vote column the stylesheet measures. So the ladder is: tenths for the ten-thousands, whole
+thousands from 100k, tenths again for millions.
+
+Off by default because old reddit printed the whole number, and fidelity is what the
+extension is for; this is an opt-in skin. Comment scores are never shortened — `13.5K
+points` is not a sentence old reddit ever printed — and a vote repaints a score in the same
+notation the row was drawn in, so a click cannot snap a shortened score back to its raw
+figure.
+
+The rule lives in `C.SCORE_FORMAT` (threshold, divisors, decimal places by magnitude) rather
+than being spread through `dom.js`, so the numbers that decide what "big" means and how much
+precision it is printed at have one home. A real-layout test measures the shortened figure
+against the 43px vote column, because an unshortened one (46.2px of ink) overhangs it.
+
+---
+
 ## 0.64.3
 
 ### Fixed — GIF posts and crossposts showed only a thumbnail on their own page

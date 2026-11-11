@@ -377,6 +377,31 @@ mutate "options DEFAULTS drift from contracts.js" run \
   options/options.js "  compactRows: true, showThumbnails: true, showNsfwThumbnails: false, autoPaginate: true," \
                      "  compactRows: true, showThumbnails: true, showNsfwThumbnails: false, autoPaginate: true, pruneAfterRender: false,"
 
+# --- short scores (0.65.0) ---
+# The example the owner gave: 13,495 upvotes. Rounding prints 13.5K, which is a number the
+# post does not have - the truncation IS the honesty of the feature, so the suite pins it.
+mutate "a shortened score rounds up instead of truncating" run \
+  src/core/dom.js "    const tenths = Math.floor((abs * scale) / div);" \
+                 "    const tenths = Math.round((abs * scale) / div);"
+
+# The click path formats the number a second time. A repaint that ignores the setting
+# leaves the row printed short and snaps it to the raw figure on the first vote - the row
+# and the click disagreeing about what a score looks like.
+mutate "a vote repaints the score without the shortening setting" run \
+  src/modules/account.js "        : shorten() ? shortScore(n) : score(n);" \
+                        "        : shortScore(n);"
+
+# And the switch itself: a rule nobody reads is a feature that ships off forever.
+mutate "the score setting is never read at draw time" run \
+  src/core/dom.js "  function shorten() { return !!(SHD.settings && SHD.settings.shortScores); }" \
+                  "  function shorten() { return false; }"
+
+# Real layout only: a score printed whole overhangs the 43px midcol (46.2px of ink against
+# 43), which is the staircase the row's measurement was sized for. jsdom reports every box
+# as zero, so this row is `geometry` and not `run`.
+mutate "a score printed whole overhangs the vote column" geometry \
+  src/core/dom.js "    return shorten && shorten(n) ? shortScore(n) : String(n);" \
+                  "    return String(n);"
 mutate "a shipped setting has no checkbox to set it" run \
   options/options.html '<label><input type="checkbox" data-k="autoPaginate"> Auto-load more on scroll</label>' ''
 

@@ -551,6 +551,43 @@ SHD.C = {
     fullPostLink: 'a[slot="full-post-link"]'
   },
 
+  /* ---------- score display (not a Reddit contract) ---------- */
+  /**
+   * How a five-figure score is SHORTENED for display, and the one number that decides
+   * where it starts. This is our own presentation contract - no shreddit-* markup is
+   * involved - but it lives here because contracts.js is the one place this project keeps
+   * a constant that something else asserts against.
+   *
+   * Old reddit prints the raw number and lets the midcol do the squeezing, which is why
+   * .midcol is 43px wide for a five-digit score (see old-reddit.css). From SHORTEN_FROM
+   * up, a score that big is a number nobody reads digit by digit, so the setting can print
+   * 13.5K instead.
+   *
+   *   threshold  the first score that is shortened (ten thousand, as the owner asked:
+   *              four figures stay whole, five figures shorten)
+   *   divisors   the unit is chosen by magnitude - thousands, then millions
+   *   decimals   decimal places, chosen by magnitude, and TRUNCATED rather than rounded:
+   *              13.49K prints 13.4K, never 13.5K. Truncating is the honest direction (13.4K
+   *              is not more than the post has) and it also cannot round a score UP into a
+   *              unit it has not reached - 999_999 is 999.9K, never 1000.0K.
+   *
+   *              The ten-thousands keep one decimal (13,495 -> 13.4K) because that is the
+   *              resolution the number has at that size. From 100,000 the third significant
+   *              figure is the one worth printing, so it is a whole thousand: 123,456 ->
+   *              123K, 999,999 -> 999K. A decimal there would repeat digits the score often
+   *              does not have (a trending post is frequently exactly 100k), and it would
+   *              widen the column the CSS measures for.
+   *
+   *               10,000 - 99,999        1 decimal   13.4K
+   *               100,000 - 999,999      0 decimals  123K   (and 1.2M is the million's 1)
+   *               1,000,000 +            1 decimal   1.2M
+   */
+  SCORE_FORMAT: {
+    threshold: 10000,
+    divisors: [[1000000, 'M'], [1000, 'K']],
+    decimals: [[1000000, 1], [100000, 0], [0, 1]]   // [0, 1] is the floor: never unhandled
+  },
+
   /* ---------- comments ---------- */
   COMMENT_TREE: 'shreddit-comment-tree',
   COMMENT: 'shreddit-comment',
@@ -1054,6 +1091,13 @@ SHD.settings = {
      they did for save/report. `true` shows the real image, as the opt-in did. */
   showNsfwThumbnails: false,
   autoPaginate: true,       // false => "load more" becomes a manual button
+  /* Print a big score the way the reader would say it - 13500 -> "13.5K" - instead of old
+     reddit's raw figure. OFF by default, and that is a fidelity decision rather than a
+     safety one: old reddit printed the whole number, so the faithful rendering is the
+     default and this is an opt-in skin. From 10,000 up only (C.SCORE_FORMAT), one decimal,
+     truncated, capital K. Read by dom.score() at draw time and by account.paint() after a
+     vote, so the row and the click that moves it always agree. */
+  shortScores: false,
   /* Play video inside the comments page instead of only linking to it. This is the ONE
      setting that costs a network request — one GET of a static manifest per video post
      opened, and only then (see media.js and PRIVACY.md). On by default because without it

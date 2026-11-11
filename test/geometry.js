@@ -1557,6 +1557,49 @@ const overlaps = (a, b) =>
     await page.close();
   }
 
+  /* ================================================================== *
+   * A SHORT SCORE FITS THE VOTE COLUMN
+   * ================================================================== */
+  console.log('\n\x1b[1mA SHORTENED SCORE STAYS INSIDE THE MIDCOL\x1b[0m');
+  /* The 43px midcol was sized by measurement for a five-digit score (old-reddit.css says
+     why, and css-lint checks the pair). Shortening a score does not suspend that: measured
+     in a real engine, 13.4K is 42.5px of ink against 13495's 46.2px, so the opt-in has to
+     fit the same box that already overflowed for a wider number. Only layout can see this;
+     jsdom reports every box as zero and would pass whatever was drawn. */
+  {
+    const { page, pageErrors } = await open(browser, origin, PATHS.listing,
+      '#shd-root .thing.link', { width: 1280, height: 900 });
+    await page.evaluate(() => window.SHD.pipeline.setSetting('shortScores', true));
+    const shortened = await (async () => {
+      for (let i = 0; i < 50; i++) {
+        if (await page.evaluate(() => /K$/.test(
+          document.querySelector('.thing[data-fullname="t3_gallery1"] .score')?.textContent || ''))) return true;
+        await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
+      }
+      return false;
+    })();
+    check('the setting re-renders the feed into short scores', shortened);
+    const m = await page.evaluate(() => {
+      const el = document.querySelector('.thing[data-fullname="t3_gallery1"] .score');
+      const col = el.closest('.midcol').getBoundingClientRect();
+      const range = document.createRange(); range.selectNodeContents(el);
+      const ink = range.getBoundingClientRect();
+      return {
+        text: el.textContent,
+        ink: Math.round(ink.width * 10) / 10,
+        col: Math.round(col.width * 10) / 10,
+        left: Math.round(col.left), right: Math.round(col.right),
+        inkLeft: Math.round(ink.left), inkRight: Math.round(ink.right)
+      };
+    });
+    check('setup: the row really is showing a short score', m.text === '13.4K', JSON.stringify(m));
+    check('the shortened score fits its column', m.ink <= m.col, JSON.stringify(m));
+    check('...without overhanging it into the title or the rank',
+      m.inkLeft >= m.left - 1 && m.inkRight <= m.right + 1, JSON.stringify(m));
+    check('no page errors from the score re-render', pageErrors.length === 0, pageErrors.join(' | '));
+    await page.close();
+  }
+
   console.log('\n\x1b[1mA SETTINGS CHANGE KEEPS YOUR PLACE\x1b[0m');
   // Changing a setting tears the render down — a placeholder tile and a picture are
   // different markup, not different paint — and without care that lands the reader back

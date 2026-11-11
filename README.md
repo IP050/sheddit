@@ -19,15 +19,18 @@ No account. No profile. No feed tuned to keep you scrolling.
 [![telemetry: none](https://img.shields.io/badge/telemetry-none-success?style=flat-square)](#privacy)
 [![feed: ranked by votes](https://img.shields.io/badge/feed-ranked_by_votes-success?style=flat-square)](#why-sheddit)
 
-[![version 0.64.3](https://img.shields.io/badge/version-0.64.3-ff4500?style=flat-square)](CHANGELOG.md)
+[![version 0.65.0](https://img.shields.io/badge/version-0.65.0-ff4500?style=flat-square)](CHANGELOG.md)
 [![Manifest V3](https://img.shields.io/badge/manifest-v3-5f99cf?style=flat-square&logo=googlechrome&logoColor=white)](manifest.json)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-install-5f99cf?style=flat-square&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/sheddit/jmphfpemcclbhpkanmlglmnggcjmpamc)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox_Add--ons-install-ff7139?style=flat-square&logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/sheddit/)
 [![license: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-663399?style=flat-square)](LICENSE)
 
-### Beta 0.64.3 — delete, hide and your own tabs
+### Beta 0.65.0 — short scores, if you want them
 
-**0.64.3 shows GIF posts and crossposts** on their own page — the animation, picture,
+**0.65.0 adds an optional "short scores" setting:** with it on, a post with 13,495
+upvotes shows **13.4K** instead of the whole number, and from 100,000 up it shows **123K**.
+It is off by default, four-figure scores never change, the exact figure is on hover, and it
+is one checkbox on the options page. **0.64.3 shows GIF posts and crossposts** on their own page — the animation, picture,
 gallery or video, not just a thumbnail. **0.64.2 hides spoilers** until you click them, opens threads on profile posts in the old
 layout, and stops a feed that returns nothing from loading forever. **0.64.1 tidied a
 deleted row**: it dropped the edit and reply links that could no longer do anything. **0.64.0 filled in the signed-in basics:** delete your own comments and posts, edit your
@@ -90,7 +93,7 @@ broke is the fastest way it gets fixed. [What changed](CHANGELOG.md).
 > Your own comments have an **edit** link that opens Reddit's native editor.
 > Save there, then choose **back to sheddit** to return to the updated comment.
 >
-> **Known live limitations in 0.64.3:** Reddit can refuse a reply sent seconds after the
+> **Known live limitations in 0.65.0:** Reddit can refuse a reply sent seconds after the
 > previous one. Sheddit then shows Reddit's own reason and keeps your draft in its box;
 > wait and save again. Posting a reply switches Reddit's own composer to its Markdown
 > editor, and Reddit remembers that choice.
@@ -105,6 +108,14 @@ broke is the fastest way it gets fixed. [What changed](CHANGELOG.md).
 ## What's new
 
 Full detail, and every earlier build, in the [changelog](CHANGELOG.md).
+
+**0.65.0 · 2026-11-11 — short scores**
+
+- **New:** an optional **Short scores** checkbox. On, a score of 10,000 or more prints
+  `13.4K` instead of `13495`, and 100,000 or more prints `123K`. Off by default; four-digit
+  scores always stay whole, and the exact number is still on hover.
+- The decimal is truncated, never rounded: 13,495 upvotes are 13.4K, because the post does
+  not have 13.5 thousand.
 
 **0.64.3 · 2026-11-08 — GIF posts and crossposts**
 
@@ -277,7 +288,7 @@ were left alone, one checkbox on the options page turns it off.
 
 ## Install
 
-Version **0.64.3**, beta. It works and is tested on both browsers, **but Chrome is the
+Version **0.65.0**, beta. It works and is tested on both browsers, **but Chrome is the
 primary target and the steadier of the two** — three of the test suites drive a real
 Chromium (the packed extension, layout geometry, media playback) against one for Firefox,
 and every feature lands on Chrome first. Firefox is genuinely supported and its suite

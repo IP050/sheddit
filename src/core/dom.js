@@ -52,12 +52,58 @@ SHD.dom = (() => {
     el.appendChild(children instanceof Node ? children : document.createTextNode(String(children)));
   }
 
-  /** 8364 -> "8364"; old reddit shows raw scores, but caps display width. */
+  /**
+   * 8364 -> "8364"; old reddit shows raw scores, but caps display width.
+   *
+   * From 10,000 up the number is shortened instead (13500 -> "13.5K") when the reader has
+   * asked for that in the options page. The rule itself lives in dom.js because the vote
+   * controls have to FORMAT the same number after a click (account.js) - this is the one
+   * place old reddit's raw figure is drawn, so the switch is read here rather than at every
+   * call site. SHD.settings is guarded: dom.js is loaded by the dev harness and by tests
+   * that never boot a settings object.
+   */
   function score(n) {
     if (n == null || Number.isNaN(n)) return '•';
-    return String(n);
+    return shorten && shorten(n) ? shortScore(n) : String(n);
   }
 
+  /**
+   * Whether the reader has asked for short scores. Read at draw time, never captured.
+   *
+   * Kept as a function rather than a boolean captured at load: the setting changes live
+   * (the storage listener re-renders), and a captured copy would go stale on the next
+   * click that moved a score. account.js asks shorten(), then shortScore(), and so draws
+   * exactly what a re-render would.
+   */
+  function shorten() { return !!(SHD.settings && SHD.settings.shortScores); }
+
+  /**
+   * 13500 -> "13.5K". The rule and its arithmetic are C.SCORE_FORMAT's.
+   *
+   * The decimal is TRUNCATED, never rounded (13.49K is 13.4K - see C.SCORE_FORMAT), which
+   * is also why it can never cross a unit boundary: 999_999 cannot become 1000.0K because
+   * the division never reaches 1000. And a score below the threshold is not shortened at
+   * all (9_999 stays "9999"). A negative net score is shortened by magnitude with its sign
+   * kept, which is the only form that can be shown at all - old reddit prints the minus,
+   * and so does this.
+   *
+   * HOW MANY DECIMALS is decided by C.SCORE_FORMAT.decimals from the score's magnitude,
+   * not fixed: the ten-thousands keep one (13,495 -> 13.4K), hundreds of thousands carry
+   * none (123,456 -> 123K), millions one again (1,234,567 -> 1.2M).
+   */
+  function shortScore(n) {
+    const F = SHD.C.SCORE_FORMAT;
+    if (n == null || Number.isNaN(n)) return '•';
+    const sign = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    if (abs < F.threshold) return String(n);
+    const [div, unit] = F.divisors.find(([d]) => abs >= d) || F.divisors[F.divisors.length - 1];
+    // The table ends in a [0, 1] floor, so this find always answers.
+    const decimals = F.decimals.find(([d]) => abs >= d)[1];
+    const scale = 10 ** decimals;
+    const tenths = Math.floor((abs * scale) / div);
+    return sign + (tenths / scale).toFixed(decimals) + unit;
+  }
   /** ISO timestamp -> "6 hours ago" */
   function ago(iso) {
     const then = Date.parse(iso);
@@ -347,6 +393,6 @@ SHD.dom = (() => {
   const rowSel = (id) =>
     `.thing[data-fullname="${String(id).replace(/["\\]/g, '\\$&')}"]`;
 
-  return { h, safeUrl, score, ago, domain, plural, flair, inlineGifs, gifVideo, adoptBody, rowSel,
+  return { h, safeUrl, score, shortScore, shorten, ago, domain, plural, flair, inlineGifs, gifVideo, adoptBody, rowSel,
            deepQuery, shadowRoots, passthrough, passthroughNote, passthroughClear };
 })();
